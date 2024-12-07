@@ -58,7 +58,11 @@ services:
     networks:
       - infra
     healthcheck:
-      test: ["CMD-SHELL", "mongo --username $MONGO_INITDB_ROOT_USERNAME --password $MONGO_INITDB_ROOT_PASSWORD --eval 'db.adminCommand(\"ping\")' || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          'mongo --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --eval ''db.adminCommand("ping")'' || exit 1',
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
