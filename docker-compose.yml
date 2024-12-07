@@ -18,6 +18,11 @@ services:
       RABBITMQ_DEFAULT_VHOST: /
     networks:
       - infra
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "node_health_check"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   nginx-proxy-manager:
     image: jc21/nginx-proxy-manager:latest
@@ -32,27 +37,35 @@ services:
       - npm_letsencrypt:/etc/letsencrypt
     networks:
       - infra
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:81"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
-  postgres:
-    image: postgres:15
-    container_name: postgres
+  # MongoDB Service
+  mongodb:
+    image: mongo:6
+    container_name: mongodb
     restart: always
     environment:
-      POSTGRES_USER: mensajeria
-      POSTGRES_PASSWORD: mensajeria_pass
-      POSTGRES_DB: mensajeria_db
+      MONGO_INITDB_ROOT_USERNAME: mensajeria
+      MONGO_INITDB_ROOT_PASSWORD: mensajeria_pass
     ports:
-      - "5432:5432"
+      - "27017:27017" # Puerto estándar de MongoDB
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      # Descomentar las siguientes líneas para usar carpetas locales:
-      # - ./postgres/init-scripts:/docker-entrypoint-initdb.d   # Scripts de inicialización locales
+      - mongodb_data:/data/db
     networks:
       - infra
+    healthcheck:
+      test: ["CMD-SHELL", "mongo --username $MONGO_INITDB_ROOT_USERNAME --password $MONGO_INITDB_ROOT_PASSWORD --eval 'db.adminCommand(\"ping\")' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   # Prometheus Monitoring Service
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.0.0
     container_name: prometheus
     restart: always
     volumes:
@@ -61,10 +74,15 @@ services:
       - "9090:9090" # Prometheus Web UI
     networks:
       - infra
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   # Grafana Service
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.4.0
     container_name: grafana
     restart: always
     environment:
@@ -76,102 +94,61 @@ services:
       - grafana_data:/var/lib/grafana
     networks:
       - infra
-
-  # Elasticsearch Service
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.6.2
-    container_name: elasticsearch
-    environment:
-      - discovery.type=single-node
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    ports:
-      - "9200:9200" # Elasticsearch HTTP API
-      - "9300:9300" # Elasticsearch transport API
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - infra
-
-  # Logstash Service
-  logstash:
-    image: docker.elastic.co/logstash/logstash:8.6.2
-    container_name: logstash
-    environment:
-      - LOGSTASH_BIN=/usr/share/logstash/bin
-    volumes:
-      - ./logstash/config:/usr/share/logstash/config
-      - ./logstash/pipeline:/usr/share/logstash/pipeline
-    ports:
-      - "5044:5044" # Logstash Beats input (optional)
-      - "5000:5000" # Logstash TCP input (optional)
-    networks:
-      - infra
-
-  # Kibana Service
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.6.2
-    container_name: kibana
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    ports:
-      - "5601:5601" # Kibana Web UI
-    networks:
-      - infra
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
 volumes:
   # RabbitMQ Volumes
   rabbitmq_data:
     # driver_opts:
     #   type: none
-    #   device: ./rabbitmq/data                          # Ruta local opcional
+    #   device: ./rabbitmq/data
     #   o: bind
   rabbitmq_config:
     # driver_opts:
     #   type: none
-    #   device: ./rabbitmq/config                        # Ruta local opcional
+    #   device: ./rabbitmq/config
     #   o: bind
   rabbitmq_init:
     # driver_opts:
     #   type: none
-    #   device: ./rabbitmq/init-scripts                  # Ruta local opcional
+    #   device: ./rabbitmq/init-scripts
     #   o: bind
 
   # Nginx Proxy Manager Volumes
   npm_data:
     # driver_opts:
     #   type: none
-    #   device: ./nginx-proxy-manager/data               # Ruta local opcional
+    #   device: ./nginx-proxy-manager/data
     #   o: bind
   npm_letsencrypt:
     # driver_opts:
     #   type: none
-    #   device: ./nginx-proxy-manager/letsencrypt        # Ruta local opcional
+    #   device: ./nginx-proxy-manager/letsencrypt
     #   o: bind
 
-  # PostgreSQL Volumes
-  postgres_data:
+  # MongoDB Volumes
+  mongodb_data:
     # driver_opts:
     #   type: none
-    #   device: ./postgres/data                         # Ruta local opcional
+    #   device: ./mongodb/data
     #   o: bind
 
   # Monitoring Volumes
   prometheus_data:
     # driver_opts:
     #   type: none
-    #   device: ./monitoring/prometheus_data            # Ruta local opcional
+    #   device: ./monitoring/prometheus_data
     #   o: bind
   grafana_data:
     # driver_opts:
     #   type: none
-    #   device: ./monitoring/grafana_data               # Ruta local opcional
-    #   o: bind
-
-  # ELK Volumes
-  elasticsearch_data:
-    # driver_opts:
-    #   type: none
-    #   device: ./elasticsearch/data                    # Ruta local opcional
+    #   device: ./monitoring/grafana_data
     #   o: bind
 
 networks:
