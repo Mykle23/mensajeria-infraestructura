@@ -1,0 +1,179 @@
+version: "3.8"
+
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - "5672:5672" # AMQP
+      - "15672:15672" # RabbitMQ Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq # Volumen virtual para datos
+      - rabbitmq_config:/etc/rabbitmq # Volumen virtual para configuración
+      - rabbitmq_init:/docker-entrypoint-initdb.d # Volumen virtual para scripts de inicialización
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+      RABBITMQ_DEFAULT_VHOST: /
+    networks:
+      - infra
+
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81" # Admin UI
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    networks:
+      - infra
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: mensajeria
+      POSTGRES_PASSWORD: mensajeria_pass
+      POSTGRES_DB: mensajeria_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Descomentar las siguientes líneas para usar carpetas locales:
+      # - ./postgres/init-scripts:/docker-entrypoint-initdb.d   # Scripts de inicialización locales
+    networks:
+      - infra
+
+  # Prometheus Monitoring Service
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    volumes:
+      - prometheus_data:/etc/prometheus
+    ports:
+      - "9090:9090" # Prometheus Web UI
+    networks:
+      - infra
+
+  # Grafana Service
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000" # Grafana Web UI
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - infra
+
+  # Elasticsearch Service
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.6.2
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200" # Elasticsearch HTTP API
+      - "9300:9300" # Elasticsearch transport API
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - infra
+
+  # Logstash Service
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.6.2
+    container_name: logstash
+    environment:
+      - LOGSTASH_BIN=/usr/share/logstash/bin
+    volumes:
+      - ./logstash/config:/usr/share/logstash/config
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+    ports:
+      - "5044:5044" # Logstash Beats input (optional)
+      - "5000:5000" # Logstash TCP input (optional)
+    networks:
+      - infra
+
+  # Kibana Service
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.6.2
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601" # Kibana Web UI
+    networks:
+      - infra
+
+volumes:
+  # RabbitMQ Volumes
+  rabbitmq_data:
+    # driver_opts:
+    #   type: none
+    #   device: ./rabbitmq/data                          # Ruta local opcional
+    #   o: bind
+  rabbitmq_config:
+    # driver_opts:
+    #   type: none
+    #   device: ./rabbitmq/config                        # Ruta local opcional
+    #   o: bind
+  rabbitmq_init:
+    # driver_opts:
+    #   type: none
+    #   device: ./rabbitmq/init-scripts                  # Ruta local opcional
+    #   o: bind
+
+  # Nginx Proxy Manager Volumes
+  npm_data:
+    # driver_opts:
+    #   type: none
+    #   device: ./nginx-proxy-manager/data               # Ruta local opcional
+    #   o: bind
+  npm_letsencrypt:
+    # driver_opts:
+    #   type: none
+    #   device: ./nginx-proxy-manager/letsencrypt        # Ruta local opcional
+    #   o: bind
+
+  # PostgreSQL Volumes
+  postgres_data:
+    # driver_opts:
+    #   type: none
+    #   device: ./postgres/data                         # Ruta local opcional
+    #   o: bind
+
+  # Monitoring Volumes
+  prometheus_data:
+    # driver_opts:
+    #   type: none
+    #   device: ./monitoring/prometheus_data            # Ruta local opcional
+    #   o: bind
+  grafana_data:
+    # driver_opts:
+    #   type: none
+    #   device: ./monitoring/grafana_data               # Ruta local opcional
+    #   o: bind
+
+  # ELK Volumes
+  elasticsearch_data:
+    # driver_opts:
+    #   type: none
+    #   device: ./elasticsearch/data                    # Ruta local opcional
+    #   o: bind
+
+networks:
+  infra:
+    driver: bridge
