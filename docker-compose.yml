@@ -28,6 +28,9 @@ services:
     image: jc21/nginx-proxy-manager:latest
     container_name: nginx-proxy-manager
     restart: always
+    environment:
+      PUID: 1000
+      PGID: 1000
     ports:
       - "80:80"
       - "443:443"
@@ -35,6 +38,8 @@ services:
     volumes:
       - npm_data:/data
       - npm_letsencrypt:/etc/letsencrypt
+      - ./nginx-proxy-manager/npm-init.sh:/npm-init.sh # Montar el script en el contenedor
+    command: /bin/bash -c "/npm-init.sh && tail -f /dev/null" # Ejecutar el script Bash al iniciar
     networks:
       - infra
     healthcheck:
