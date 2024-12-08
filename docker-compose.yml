@@ -39,6 +39,8 @@ services:
       - npm_data:/data
       - npm_letsencrypt:/etc/letsencrypt
       - ./nginx-proxy-manager/npm-init.sh:/npm-init.sh # Montar el script en el contenedor
+      # - ./nginx-proxy-manager/nginx.conf:/etc/nginx/conf.d/default.conf 
+      - ./nginx-proxy-manager/nginx.conf:/data/nginx/custom/http.conf
     command: /bin/bash -c "/npm-init.sh && tail -f /dev/null" # Ejecutar el script Bash al iniciar
     networks:
       - infra
@@ -80,6 +82,17 @@ services:
       - "9216:9216" # Puerto de métricas de MongoDB
     networks:
       - infra
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: nginx-exporter
+    ports:
+      - "9113:9113"
+    command:
+      - "--nginx.scrape-uri=http://nginx-proxy-manager:8080/stub_status"
+    networks:
+      - infra
+    depends_on:
+      - nginx-proxy-manager
   # Prometheus Monitoring Service
   prometheus:
     image: prom/prometheus:v3.0.0
