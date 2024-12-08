@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 15s # Intervalo de scraping predeterminado
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "rabbitmq"
+    static_configs:
+      - targets: ["rabbitmq:15692"] # Puerto para las métricas de RabbitMQ
+
+  # - job_name: "api-gateway"
+  #   static_configs:
+  #     - targets: ["api-gateway:3000"] # Asegúrate de que expose las métricas
+
+  # - job_name: "servicio-whatsapp"
+  #   static_configs:
+  #     - targets: ["servicio-whatsapp:4000"]
+
+  # - job_name: "servicio-telegram"
+  #   static_configs:
+  #     - targets: ["servicio-telegram:4000"]
