@@ -58,8 +58,8 @@ RESPONSE=$(curl -s -X POST "http://localhost:81/api/nginx/proxy-hosts" \
   -d '{
     "domain_names": ["localhost"],
     "forward_scheme": "http",
-    "forward_host": "localhost",
-    "forward_port": 3000,
+    "forward_host": "api-gateway",
+    "forward_port": 5000,
     "certificate_id": 0,
     "ssl_forced": false,
     "hsts_enabled": false,
@@ -84,7 +84,7 @@ else
   echo "Error: No se pudo configurar el host proxy. Respuesta de la API: $RESPONSE"
 fi
 
-echo "Host proxy configurado: http://localhost -> http://api-gateway:3000"
+echo "Host proxy configurado: http://localhost -> http://api-gateway:5000"
 
 # Evitar que el contenedor se apague
 exit 0

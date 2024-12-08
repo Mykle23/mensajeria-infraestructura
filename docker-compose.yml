@@ -17,7 +17,7 @@ services:
       RABBITMQ_DEFAULT_VHOST: /
       RABBITMQ_ENABLE_PROMETHEUS: true # Habilitar Prometheus
     networks:
-      - infra
+      - mensajeria-infraestructura_infra
     healthcheck:
       test: ["CMD", "rabbitmqctl", "node_health_check"]
       interval: 30s
@@ -39,11 +39,10 @@ services:
       - npm_data:/data
       - npm_letsencrypt:/etc/letsencrypt
       - ./nginx-proxy-manager/npm-init.sh:/npm-init.sh # Montar el script en el contenedor
-      # - ./nginx-proxy-manager/nginx.conf:/etc/nginx/conf.d/default.conf 
       - ./nginx-proxy-manager/nginx.conf:/data/nginx/custom/http.conf
     command: /bin/bash -c "/npm-init.sh && tail -f /dev/null" # Ejecutar el script Bash al iniciar
     networks:
-      - infra
+      - mensajeria-infraestructura_infra
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:81"]
       interval: 30s
@@ -63,7 +62,7 @@ services:
     volumes:
       - mongodb_data:/data/db
     networks:
-      - infra
+      - mensajeria-infraestructura_infra
     healthcheck:
       test:
         [
@@ -73,6 +72,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+
   mongodb-exporter:
     image: bitnami/mongodb-exporter:latest
     container_name: mongodb-exporter
@@ -81,7 +81,8 @@ services:
     ports:
       - "9216:9216" # Puerto de métricas de MongoDB
     networks:
-      - infra
+      - mensajeria-infraestructura_infra
+
   nginx-exporter:
     image: nginx/nginx-prometheus-exporter:latest
     container_name: nginx-exporter
@@ -90,9 +91,10 @@ services:
     command:
       - "--nginx.scrape-uri=http://nginx-proxy-manager:8080/stub_status"
     networks:
-      - infra
+      - mensajeria-infraestructura_infra
     depends_on:
       - nginx-proxy-manager
+
   # Prometheus Monitoring Service
   prometheus:
     image: prom/prometheus:v3.0.0
@@ -104,7 +106,7 @@ services:
     ports:
       - "9090:9090" # Prometheus Web UI
     networks:
-      - infra
+      - mensajeria-infraestructura_infra
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9090/-/healthy"]
       interval: 30s
@@ -127,7 +129,7 @@ services:
       - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
     networks:
-      - infra
+      - mensajeria-infraestructura_infra
     depends_on:
       - prometheus
     healthcheck:
@@ -135,6 +137,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+
   node-exporter:
     image: prom/node-exporter
     container_name: node-exporter
@@ -142,7 +145,7 @@ services:
       - 9100:9100
     restart: unless-stopped
     networks:
-      - infra
+      - mensajeria-infraestructura_infra
 volumes:
   # RabbitMQ Volumes
   rabbitmq_data:
@@ -193,5 +196,6 @@ volumes:
     #   o: bind
 
 networks:
-  infra:
-    driver: bridge
+  mensajeria-infraestructura_infra:
+    name: mensajeria-infraestructura_infra
+    # driver: bridge
